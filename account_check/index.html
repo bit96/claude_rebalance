@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude账号实时验证</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .form-section {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .password-toggle {
+            position: relative;
+        }
+        
+        .password-toggle button {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .validate-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .validate-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .validate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result-section {
+            padding: 40px;
+            background: #f8f9fa;
+            display: none;
+        }
+        
+        .result-section.show {
+            display: block;
+        }
+        
+        .result-header {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .result-log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .result-summary {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .model-result {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .model-result.success {
+            border-left: 4px solid #28a745;
+        }
+        
+        .model-result.failed {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .model-result.skipped {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Claude账号验证</h1>
+            <p>输入URL和API Key，一键验证Sonnet 4和Opus 4.1可用性</p>
+        </div>
+        
+        <div class="form-section">
+            <form id="validateForm">
+                <div class="form-group">
+                    <label for="url">API URL</label>
+                    <input type="url" id="url" name="url" placeholder="https://api.anthropic.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="key">API Key</label>
+                    <div class="password-toggle">
+                        <input type="password" id="key" name="key" placeholder="sk-ant-api03-xxxxx 或 cr_xxxxx" required>
+                        <button type="button" onclick="togglePassword()">👁️</button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="validate-btn" id="submitBtn">
+                    开始验证
+                </button>
+            </form>
+        </div>
+        
+        <div class="result-section" id="resultSection">
+            <h2 class="result-header">验证结果</h2>
+            <div class="result-log" id="resultLog"></div>
+            <div class="result-summary" id="resultSummary"></div>
+        </div>
+    </div>
+
+    <script>
+        let isValidating = false;
+        
+        function togglePassword() {
+            const keyInput = document.getElementById('key');
+            const type = keyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            keyInput.setAttribute('type', type);
+        }
+        
+        function addLog(message) {
+            const resultLog = document.getElementById('resultLog');
+            resultLog.textContent += message + '\n';
+            resultLog.scrollTop = resultLog.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('resultLog').textContent = '';
+            document.getElementById('resultSummary').innerHTML = '';
+        }
+        
+        function showResult() {
+            const resultSection = document.getElementById('resultSection');
+            resultSection.classList.add('show');
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function updateButton(loading = false) {
+            const btn = document.getElementById('submitBtn');
+            if (loading) {
+                btn.innerHTML = '<span class="loading"></span> 验证中...';
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = '开始验证';
+                btn.disabled = false;
+            }
+        }
+        
+        function displayResults(data) {
+            const summary = document.getElementById('resultSummary');
+            const { sonnet4, opus41, overallStatus, url } = data;
+            
+            let html = `<h3>📊 验证摘要</h3>`;
+            html += `<p><strong>测试URL:</strong> ${url}</p>`;
+            
+            // Sonnet 4 结果
+            html += `<div class="model-result ${sonnet4.status}">`;
+            html += `<h4>🤖 Claude Sonnet 4</h4>`;
+            if (sonnet4.status === 'success') {
+                html += `<p>✅ <strong>状态:</strong> 验证成功 ${sonnet4.speed} (${sonnet4.responseTime}ms)</p>`;
+                html += `<p><strong>响应预览:</strong> ${sonnet4.response.substring(0, 100)}...</p>`;
+            } else {
+                html += `<p>❌ <strong>状态:</strong> 验证失败</p>`;
+                html += `<p><strong>错误:</strong> ${sonnet4.errorType}: ${sonnet4.error}</p>`;
+            }
+            html += `</div>`;
+            
+            // Opus 4.1 结果
+            html += `<div class="model-result ${opus41.status}">`;
+            html += `<h4>🚀 Claude Opus 4.1</h4>`;
+            if (opus41.status === 'success') {
+                html += `<p>✅ <strong>状态:</strong> 验证成功 ${opus41.speed} (${opus41.responseTime}ms)</p>`;
+                html += `<p><strong>响应预览:</strong> ${opus41.response.substring(0, 100)}...</p>`;
+            } else if (opus41.status === 'skipped') {
+                html += `<p>⏭️ <strong>状态:</strong> 跳过测试</p>`;
+                html += `<p><strong>原因:</strong> ${opus41.error}</p>`;
+            } else {
+                html += `<p>❌ <strong>状态:</strong> 验证失败</p>`;
+                html += `<p><strong>错误:</strong> ${opus41.errorType}: ${opus41.error}</p>`;
+            }
+            html += `</div>`;
+            
+            // 总结
+            html += `<div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 6px;">`;
+            if (overallStatus === 'both_success') {
+                html += `<h4>🎉 验证结果: 完全支持</h4>`;
+                html += `<p>该账号同时支持 Sonnet 4 和 Opus 4.1 模型</p>`;
+            } else if (overallStatus === 'sonnet_only') {
+                html += `<h4>⚠️ 验证结果: 部分支持</h4>`;
+                html += `<p>该账号仅支持 Sonnet 4 模型</p>`;
+            } else {
+                html += `<h4>❌ 验证结果: 不支持</h4>`;
+                html += `<p>该账号无法使用任何测试模型</p>`;
+            }
+            html += `</div>`;
+            
+            summary.innerHTML = html;
+        }
+        
+        document.getElementById('validateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (isValidating) return;
+            isValidating = true;
+            
+            const url = document.getElementById('url').value;
+            const key = document.getElementById('key').value;
+            
+            clearLog();
+            showResult();
+            updateButton(true);
+            
+            addLog('🚀 开始Claude账号双模型验证...');
+            addLog(`📋 测试URL: ${url}`);
+            addLog(`🔑 API Key: ${key.substring(0, 10)}...`);
+            addLog('');
+            addLog('🔄 第一步: 测试 Sonnet 4 模型...');
+            
+            try {
+                const response = await fetch('/api/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url, key })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const { sonnet4, opus41 } = result.data;
+                    
+                    // 显示 Sonnet 4 结果
+                    if (sonnet4.status === 'success') {
+                        addLog(`✅ Sonnet 4: 验证成功 - ${sonnet4.speed} (${sonnet4.responseTime}ms)`);
+                        addLog(`💬 响应预览: ${sonnet4.response.substring(0, 80)}...`);
+                        addLog('');
+                        addLog('🔄 第二步: 测试 Opus 4.1 模型...');
+                        
+                        if (opus41.status === 'success') {
+                            addLog(`✅ Opus 4.1: 验证成功 - ${opus41.speed} (${opus41.responseTime}ms)`);
+                            addLog(`💬 响应预览: ${opus41.response.substring(0, 80)}...`);
+                        } else {
+                            addLog(`❌ Opus 4.1: 验证失败 - ${opus41.errorType}: ${opus41.error}`);
+                        }
+                    } else {
+                        addLog(`❌ Sonnet 4: 验证失败 - ${sonnet4.errorType}: ${sonnet4.error}`);
+                        addLog('⏭️ 跳过 Opus 4.1 测试');
+                    }
+                    
+                    addLog('');
+                    addLog('📊 验证完成!');
+                    
+                    displayResults(result.data);
+                } else {
+                    addLog(`❌ 验证失败: ${result.error}`);
+                    document.getElementById('resultSummary').innerHTML = 
+                        `<div class="error">验证失败: ${result.error}</div>`;
+                }
+            } catch (error) {
+                addLog(`❌ 请求失败: ${error.message}`);
+                document.getElementById('resultSummary').innerHTML = 
+                    `<div class="error">请求失败: ${error.message}</div>`;
+            } finally {
+                updateButton(false);
+                isValidating = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "claude-account-web-validator",
+  "version": "1.0.0",
+  "description": "Claude账号Web验证工具",
+  "main": "web-server.js",
+  "scripts": {
+    "start": "node web-server.js",
+    "dev": "node web-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "author": "",
+  "license": "MIT"
+}
